@@ -16,6 +16,8 @@ What it does (safe to re-run any time):
 Flags:
   --reinstall    force re-install of requirements
   --no-browser   do not open a browser window
+  --no-update    skip the check for a newer version on GitHub
+  --update       force re-download of the latest version, even if up to date
 """
 import hashlib
 import json
@@ -337,6 +339,30 @@ def open_browser_when_ready(url: str) -> None:
     threading.Thread(target=poll, daemon=True).start()
 
 
+def maybe_self_update(force: bool) -> None:
+    """Apply a GitHub update if available, then relaunch so the new start.py runs.
+    Kept optional -- a missing/broken updater must never stop the app launching."""
+    try:
+        import updater
+    except Exception:
+        return
+    try:
+        updated = updater.check_and_update(say, force=force)
+    except Exception as e:
+        say(f"Update check skipped ({e}).")
+        return
+    # If files changed, re-exec this launcher once so a changed start.py takes
+    # effect immediately. The guard env var prevents any relaunch loop.
+    if updated and not os.environ.get("VCHAT_RELAUNCHED"):
+        say("Restarting with the updated version...")
+        os.environ["VCHAT_RELAUNCHED"] = "1"
+        args = [a for a in sys.argv[1:] if a != "--update"]  # don't force again
+        try:
+            os.execv(sys.executable, [sys.executable, str(Path(__file__).resolve()), *args])
+        except Exception:
+            pass  # fall through and run the (updated) files in this process
+
+
 def main() -> None:
     if sys.version_info < (3, 10):
         fail(f"Python 3.10 or newer is required (you have {sys.version.split()[0]}).\n"
@@ -357,6 +383,11 @@ def main() -> None:
             import webbrowser
             webbrowser.open(f"http://127.0.0.1:{running}")
         return
+
+    # Auto-update from GitHub before installing/launching, so new requirements and
+    # new code are picked up. Fails silently offline; never blocks the app.
+    if "--no-update" not in sys.argv:
+        maybe_self_update(force="--update" in sys.argv)
 
     if not acquire_single_instance():
         fail("Vertex Chat is already starting in another window.\n"
