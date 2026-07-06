@@ -90,6 +90,15 @@ def _apply(zip_path: Path):
         if not (src / "app.py").exists():
             raise RuntimeError("downloaded update looks incomplete (no app.py)")
         _copy_tree(src, BASE)
+    # GitHub zip archives don't carry the executable bit, so restore it on the
+    # shell launcher (macOS/Linux) -- otherwise ./run.sh breaks after an update.
+    if os.name != "nt":
+        sh = BASE / "run.sh"
+        if sh.exists():
+            try:
+                sh.chmod(sh.stat().st_mode | 0o111)
+            except Exception:
+                pass
 
 
 def _copy_tree(src: Path, dst: Path):
