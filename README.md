@@ -25,13 +25,14 @@ to call the proxy.
 
 ### Windows
 
-1. Install Python 3.9+ from [python.org/downloads](https://www.python.org/downloads/)
+1. Install Python 3.12 or 3.13 from [python.org/downloads](https://www.python.org/downloads/)
    — **tick "Add python.exe to PATH"** during install.
 2. Download this project (green **Code** button → *Download ZIP* → unzip), or `git clone` it.
 3. Double-click **`run.bat`**.
 
-That's it. First run installs everything automatically, then your browser opens at
-`http://127.0.0.1:8000`.
+That's it. The first run installs everything automatically (needs internet once),
+then your browser opens at `http://127.0.0.1:8000`. Later launches work offline
+and start instantly. Keep the black window open while using the app.
 
 ### macOS / Linux
 
@@ -91,7 +92,33 @@ requirements.txt  Python dependencies
 .env.example      Config template (copy to .env)
 ```
 
+## Troubleshooting the install (Windows)
+
+The installer retries automatically and explains failures in plain language.
+If it still fails:
+
+| Symptom | Fix |
+|---|---|
+| `ConnectionResetError (10054)` / "Connection broken" during install | VPN, firewall or antivirus is cutting the download. Re-run (it resumes), try once without VPN, or use a phone hotspot just for the one-time install. |
+| `CERTIFICATE_VERIFY_FAILED` / SSL errors | Corporate network intercepts SSL. The installer offers a relaxed-SSL retry — answer `y`. |
+| "It looks like you are running this from inside the ZIP" | Right-click the downloaded ZIP → **Extract All…**, then run `run.bat` from the extracted folder. |
+| "Python is not installed" but you installed it | You got the Microsoft Store stub. Install from [python.org](https://www.python.org/downloads/) and tick **Add python.exe to PATH**. |
+| `Access is denied` / `WinError 5` | Move the folder out of OneDrive/Downloads to e.g. `C:\vertex-chat`, or add it to your antivirus exclusions. |
+| Double-clicked `run.bat` but the app is already open | Fine — it just re-opens the existing app in your browser. It never starts a duplicate. |
+| Browser doesn't open by itself | Open the address printed in the black window (usually `http://127.0.0.1:8000`). |
+| Broken half-install | Just re-run `run.bat` — it repairs itself. Worst case: delete the `.venv` folder and re-run. |
+
+The install needs internet **once**. After that the app starts offline
+(only chatting needs to reach the proxy).
+
 ## Security
 
 - Never commit `.env` — it's in `.gitignore`. Only `.env.example` (no key) goes to GitHub.
-- The server binds to `127.0.0.1` only — not reachable from other machines.
+- The server binds to `127.0.0.1` only — not reachable from other machines. It also
+  rejects requests with a non-local Host header (blocks DNS-rebinding tricks from
+  malicious websites), and never sends the `.env` key to any server other than the
+  configured proxy.
+- The optional relaxed-SSL install retry skips certificate checks for the Python
+  package servers (pypi.org, files.pythonhosted.org) for that single command only,
+  and only after you explicitly agree. Use it on trusted office networks, not
+  public Wi-Fi.

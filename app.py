@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 load_dotenv()
 
@@ -18,11 +19,19 @@ STATIC_DIR = BASE_DIR / "static"
 
 app = FastAPI(title="Vertex Chat (LiteLLM proxy)")
 
+# Reject requests whose Host header is not local. Blocks DNS-rebinding pages
+# (evil.com resolving to 127.0.0.1) from reaching this API via the user's browser.
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
+
 
 def resolve_creds(request: Request):
     """Key/base from request headers (UI Settings) override env defaults."""
-    key = request.headers.get("x-api-key") or ENV_API_KEY
-    base = (request.headers.get("x-base-url") or DEFAULT_BASE_URL).rstrip("/")
+    key_hdr = request.headers.get("x-api-key")
+    base_hdr = request.headers.get("x-base-url")
+    key = key_hdr or ENV_API_KEY
+    # A client-supplied base URL is only honored together with a client-supplied
+    # key: the .env key must never be sent to a caller-chosen server.
+    base = (base_hdr if (base_hdr and key_hdr) else DEFAULT_BASE_URL).rstrip("/")
     return key, base
 
 
