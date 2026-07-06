@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vertex Chat</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">✦</span>
+      <span>Vertex Chat</span>
+    </div>
+    <div class="top-controls">
+      <label class="model-wrap">
+        <span>Model</span>
+        <select id="modelSelect"><option value="">— load models —</option></select>
+      </label>
+      <button id="reloadModels" class="icon-btn" title="Reload models">⟳</button>
+      <button id="newChat" class="ghost-btn">New chat</button>
+      <button id="openSettings" class="icon-btn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="chat-col">
+      <div id="messages" class="messages">
+        <div class="empty-state">
+          <h1>Vertex Chat</h1>
+          <p>Talk to your Vertex models via the LiteLLM proxy. Attach images, audio, video or files (drag &amp; drop works). Multi-turn memory, prompt caching on by default. To translate, just ask — e.g. "translate to Nepali: …".</p>
+        </div>
+      </div>
+
+      <div class="composer">
+        <div id="attachPreviews" class="attach-previews"></div>
+        <div class="composer-row">
+          <button id="attachBtn" class="icon-btn" title="Attach image / audio / video / file">📎</button>
+          <input id="fileInput" type="file" accept="image/*,audio/*,video/*,.pdf,.txt,.md,.csv,.tsv,.json,.srt,.vtt,.xml,.html,.yaml,.yml,.log" multiple hidden />
+          <textarea id="input" rows="1" placeholder="Type a message…  (Enter to send, Shift+Enter for newline)"></textarea>
+          <button id="sendBtn" class="send-btn" title="Send">Send</button>
+        </div>
+        <div id="usage" class="usage"></div>
+      </div>
+    </section>
+
+    <aside class="settings-col">
+      <h2>Run settings</h2>
+
+      <label class="field">
+        <span>System instructions</span>
+        <textarea id="systemPrompt" rows="4" placeholder="Optional. e.g. You are a helpful translator…"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Temperature <b id="tempVal">0.7</b></span>
+        <input id="temperature" type="range" min="0" max="2" step="0.05" value="0.7" />
+      </label>
+
+      <label class="field">
+        <span>Top-p <b id="toppVal">0.95</b></span>
+        <input id="topp" type="range" min="0" max="1" step="0.01" value="0.95" />
+      </label>
+
+      <label class="field">
+        <span>Max output tokens</span>
+        <input id="maxTokens" type="number" min="1" value="2048" placeholder="(provider default)" />
+        <small>Caps output cost per message. Clear it for provider default.</small>
+      </label>
+
+      <label class="toggle-field">
+        <input id="cacheToggle" type="checkbox" checked />
+        <span>Prompt caching</span>
+      </label>
+
+      <label class="toggle-field">
+        <input id="streamToggle" type="checkbox" checked />
+        <span>Stream responses</span>
+      </label>
+    </aside>
+  </main>
+
+  <!-- Settings modal -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>API Settings</h2>
+      <label class="field">
+        <span>Base URL</span>
+        <input id="baseUrl" type="text" placeholder="https://offeringschat.isha.in" />
+      </label>
+      <label class="field">
+        <span>API key</span>
+        <input id="apiKey" type="password" placeholder="sk-…" />
+        <small>Stored only in this browser (localStorage). Sent to the local server per request.</small>
+      </label>
+      <div class="modal-actions">
+        <button id="saveSettings" class="send-btn">Save</button>
+        <button id="closeSettings" class="ghost-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
