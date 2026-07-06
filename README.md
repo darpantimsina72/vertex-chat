@@ -20,6 +20,9 @@ to call the proxy.
 - **Streaming** responses with live token + cost display (per turn and per session)
 - **Multi-turn memory** — the whole conversation is sent each turn; history survives page reloads
 - **System instructions, temperature, top-p, max tokens** — all adjustable in the sidebar
+- **Auto-update** — on each start the app checks GitHub and installs the latest
+  version automatically. No re-downloading, no git, no login. Your key and chats
+  are kept.
 
 ## Quick start
 
@@ -85,12 +88,30 @@ overrides `.env`.
 ```
 app.py            FastAPI backend — proxies chat/model calls to LiteLLM
 static/           Web UI (plain HTML/JS/CSS, no build step)
-start.py          Cross-platform launcher (venv + deps + server + browser)
+start.py          Cross-platform launcher (update + venv + deps + server + browser)
+updater.py        Self-update from GitHub (downloads latest, keeps your data)
+update.json       Which GitHub repo/branch to update from (edit if you fork)
 run.bat           Windows double-click launcher
 run.sh            macOS/Linux launcher
 requirements.txt  Python dependencies
 .env.example      Config template (copy to .env)
 ```
+
+## Updates
+
+You don't need to re-download anything. Each time the app starts (cold, i.e. when
+it isn't already running) it checks GitHub for a newer version and installs it
+automatically, then continues. Your `.env`, installed packages, and chat history
+are never touched.
+
+- Skip the check for one launch: run with `--no-update` (or double-click while
+  offline — it just runs the current version).
+- Force a re-download of the latest: run `python start.py --update`.
+- **Forking / renaming the repo?** Edit `update.json` (owner / repo / branch) so
+  the updater points at your copy.
+
+Updates need internet; if GitHub is unreachable the app simply starts the version
+you already have.
 
 ## Troubleshooting the install (Windows)
 
