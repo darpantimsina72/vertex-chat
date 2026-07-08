@@ -51,7 +51,14 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .empty-state h1 { color: var(--text); font-size: 28px; margin-bottom: 8px; }
 
 .msg { display: flex; gap: 10px; max-width: 820px; width: 100%; margin: 0 auto; }
-.msg .role { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.msg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.msg .role { font-size: 12px; font-weight: 600; color: var(--muted); }
+.copy-btn {
+  border: 1px solid var(--border); background: #fff; color: var(--muted);
+  border-radius: 6px; font-size: 11px; padding: 2px 8px; cursor: pointer; line-height: 1.4;
+}
+.copy-btn:hover { background: var(--accent-soft); color: var(--text); }
+.copy-btn.copied { color: #16a34a; border-color: #16a34a; }
 .bubble {
   padding: 12px 14px; border-radius: 12px; line-height: 1.55; white-space: pre-wrap;
   word-wrap: break-word; box-shadow: var(--shadow); border: 1px solid var(--border);

@@ -55,14 +55,35 @@ function clearEmptyState() {
   if (es) es.remove();
 }
 
-function addBubble(role, contentHtml) {
+function addBubble(role, contentHtml, rawText) {
   clearEmptyState();
   const wrap = document.createElement("div");
   wrap.className = `msg ${role}`;
-  wrap.innerHTML = `<div class="msg-col"><div class="role">${role === "user" ? "You" : "Model"}</div><div class="bubble">${contentHtml}</div></div>`;
+  wrap.innerHTML = `<div class="msg-col"><div class="msg-head"><span class="role">${role === "user" ? "You" : "Model"}</span><button class="copy-btn" title="Copy this message">Copy</button></div><div class="bubble">${contentHtml}</div></div>`;
+  const bubble = wrap.querySelector(".bubble");
+  if (rawText !== undefined) bubble._raw = rawText;
+  wrap.querySelector(".copy-btn").addEventListener("click", (e) => copyBubble(e.currentTarget, bubble));
   messagesEl.appendChild(wrap);
   messagesEl.scrollTop = messagesEl.scrollHeight;
-  return wrap.querySelector(".bubble");
+  return bubble;
+}
+
+async function copyBubble(btn, bubble) {
+  const text = bubble._raw ?? bubble.innerText;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    // Fallback for browsers without clipboard API permission.
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  btn.textContent = "Copied!";
+  btn.classList.add("copied");
+  setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
 }
 
 function fmtCost(v) {
@@ -289,7 +310,7 @@ async function send() {
   sending = true;
   $("sendBtn").disabled = true;
 
-  addBubble("user", userBubbleHtml(text));
+  addBubble("user", userBubbleHtml(text), text);
   messages.push({ role: "user", content: buildUserContent(text) });
   inputEl.value = "";
   inputEl.style.height = "auto";
@@ -326,6 +347,7 @@ async function send() {
       const data = await res.json();
       assistantText = data.choices?.[0]?.message?.content || "";
       bubble.innerHTML = renderMarkdown(assistantText);
+      bubble._raw = assistantText;
       turnUsage = data.usage || null;
       turnCost = data._litellm_cost ?? null;
       renderUsage();
@@ -355,6 +377,7 @@ async function send() {
         }
       }
       bubble.innerHTML = renderMarkdown(assistantText);
+      bubble._raw = assistantText;
     }
 
     messages.push({ role: "assistant", content: assistantText });
@@ -387,9 +410,9 @@ function restoreHistory() {
           if (p.type === "input_audio") extra += `<div class="bubble-att">🎙 audio attachment</div>`;
           if (p.type === "file") extra += `<div class="bubble-att">📎 ${escapeHtml(p.file?.filename || "file attachment")}</div>`;
         });
-        addBubble("user", renderMarkdown(text) + extra);
+        addBubble("user", renderMarkdown(text) + extra, text);
       } else if (m.role === "assistant") {
-        addBubble("assistant", renderMarkdown(m.content || ""));
+        addBubble("assistant", renderMarkdown(m.content || ""), m.content || "");
       }
     });
   } catch (e) {}
