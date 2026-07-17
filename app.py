@@ -54,6 +54,55 @@ async def health():
     return {"ok": True, "base_url": DEFAULT_BASE_URL, "has_env_key": bool(ENV_API_KEY)}
 
 
+@app.post("/api/feedback")
+async def feedback(request: Request):
+    """Message + optional screenshots → GitHub issue on the shared private
+    feedback inbox (see app_feedback.py). Never proxies through the LLM
+    gateway — this goes straight to GitHub with the local token."""
+    import base64
+    import tempfile
+
+    import app_feedback
+    from fastapi.concurrency import run_in_threadpool
+
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Empty message.")
+    kind = body.get("kind") or "Feedback"
+    sender = (body.get("name") or "").strip()
+
+    files = []
+    tmpdir = tempfile.mkdtemp(prefix="vertex_chat_feedback_")
+    for att in (body.get("attachments") or [])[:5]:
+        name = os.path.basename(att.get("name") or "screenshot.png")
+        try:
+            data = base64.b64decode(att.get("data") or "")
+        except (ValueError, TypeError):
+            continue
+        if not data or len(data) > app_feedback.MAX_ATTACHMENT_MB * 1024 * 1024:
+            continue
+        p = os.path.join(tmpdir, name)
+        with open(p, "wb") as f:
+            f.write(data)
+        files.append(p)
+
+    try:
+        url = await run_in_threadpool(
+            app_feedback.send_feedback, "Vertex Chat", "", kind, sender,
+            message, files)
+        return {"ok": True, "url": url}
+    except Exception as exc:  # noqa: BLE001 — network/token/API, report cleanly
+        try:
+            saved = app_feedback.save_locally("Vertex Chat", "", kind, sender,
+                                              message, files)
+        except OSError:
+            saved = ""
+        return JSONResponse(status_code=502,
+                            content={"ok": False, "error": str(exc),
+                                     "saved": saved})
+
+
 @app.get("/api/models")
 async def models(request: Request):
     key, base = resolve_creds(request)

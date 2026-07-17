@@ -19,6 +19,7 @@
       </label>
       <button id="reloadModels" class="icon-btn" title="Reload models">⟳</button>
       <button id="newChat" class="ghost-btn">New chat</button>
+      <button id="openFeedback" class="icon-btn" title="Send feedback">💬</button>
       <button id="openSettings" class="icon-btn" title="Settings">⚙</button>
     </div>
   </header>
@@ -96,6 +97,39 @@
       <div class="modal-actions">
         <button id="saveSettings" class="send-btn">Save</button>
         <button id="closeSettings" class="ghost-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feedback modal -->
+  <div id="feedbackModal" class="modal hidden">
+    <div class="modal-card">
+      <h2>Send Feedback</h2>
+      <label class="field">
+        <span>Type</span>
+        <select id="fbKind">
+          <option>Feedback</option>
+          <option>Improvement</option>
+          <option>Bug</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Your name (optional)</span>
+        <input id="fbName" type="text" />
+      </label>
+      <label class="field">
+        <span>Message</span>
+        <textarea id="fbMsg" rows="4" placeholder="What works, what doesn't, what would help…"></textarea>
+      </label>
+      <label class="field">
+        <span>Screenshots (optional)</span>
+        <input id="fbShots" type="file" accept="image/*" multiple />
+        <small>Sent straight to the developer as a GitHub issue.</small>
+      </label>
+      <div id="fbStatus" class="field"><small></small></div>
+      <div class="modal-actions">
+        <button id="sendFeedback" class="send-btn">Send</button>
+        <button id="closeFeedback" class="ghost-btn">Cancel</button>
       </div>
     </div>
   </div>

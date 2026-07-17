@@ -5,3 +5,5 @@ __pycache__/
 venv/
 .DS_Store
 .applied-commit
+github_token.txt
+feedback_outbox/

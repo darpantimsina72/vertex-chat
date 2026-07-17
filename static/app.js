@@ -471,6 +471,50 @@ $("saveSettings").addEventListener("click", () => {
   loadModels();
 });
 
+// Feedback modal
+$("openFeedback").addEventListener("click", () => {
+  $("fbStatus").querySelector("small").textContent = "";
+  $("feedbackModal").classList.remove("hidden");
+});
+$("closeFeedback").addEventListener("click", () => $("feedbackModal").classList.add("hidden"));
+$("sendFeedback").addEventListener("click", async () => {
+  const msg = $("fbMsg").value.trim();
+  const status = $("fbStatus").querySelector("small");
+  if (!msg) { status.textContent = "Write a message first."; return; }
+  const files = [...($("fbShots").files || [])].slice(0, 5);
+  const attachments = await Promise.all(files.map(f => new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res({ name: f.name, data: r.result.split(",")[1] });
+    r.onerror = () => res(null);
+    r.readAsDataURL(f);
+  })));
+  $("sendFeedback").disabled = true;
+  status.textContent = "Sending…";
+  try {
+    const r = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        kind: $("fbKind").value, name: $("fbName").value.trim(),
+        message: msg, attachments: attachments.filter(Boolean),
+      }),
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      $("fbMsg").value = ""; $("fbShots").value = "";
+      status.textContent = "✓ Sent — thank you!";
+      setTimeout(() => $("feedbackModal").classList.add("hidden"), 1200);
+    } else {
+      status.textContent = "✗ " + (data.error || data.detail || "Could not send.")
+        + (data.saved ? " Saved to " + data.saved + " — send that folder to the developer." : "");
+    }
+  } catch (e) {
+    status.textContent = "✗ " + e;
+  } finally {
+    $("sendFeedback").disabled = false;
+  }
+});
+
 // ---------- Init ----------
 (function init() {
   const sys = localStorage.getItem(LS.system);
