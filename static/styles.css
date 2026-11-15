@@ -126,7 +126,47 @@ body { background: var(--bg); color: var(--text); display: flex; flex-direction:
 .modal-card h2 { margin-top: 0; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
 
+/* Chats sidebar */
+.chats-col {
+  width: 240px; border-right: 1px solid var(--border); background: var(--panel);
+  padding: 14px; display: flex; flex-direction: column; min-height: 0;
+}
+.chats-col h2 { font-size: 12px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.new-chat-side { width: 100%; padding: 10px; }
+.chat-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.chat-item {
+  display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-radius: 8px;
+  cursor: pointer; font-size: 13px;
+}
+.chat-item:hover { background: var(--bg); }
+.chat-item.active { background: var(--accent-soft); font-weight: 600; }
+.chat-item .chat-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-item .del, .memory-item .del {
+  border: none; background: none; color: var(--muted); cursor: pointer; font-size: 14px;
+  padding: 0 4px; visibility: hidden; flex-shrink: 0;
+}
+.chat-item:hover .del, .memory-item:hover .del { visibility: visible; }
+.chat-item .del:hover, .memory-item .del:hover { color: #ef4444; }
+.side-note { color: var(--muted); font-size: 11px; margin-top: 8px; display: block; }
+
+/* Memory */
+.memory-head { margin-top: 24px !important; }
+.memory-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.memory-item {
+  display: flex; align-items: flex-start; gap: 4px; font-size: 13px; padding: 6px 8px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+}
+.memory-item span { flex: 1; word-break: break-word; }
+.memory-empty { font-size: 12px; color: var(--muted); }
+.memory-add { display: flex; gap: 6px; }
+.memory-add input {
+  flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; font-size: 13px; font-family: inherit;
+}
+.memory-note { max-width: 820px; width: 100%; margin: -8px auto 0; font-size: 12px; color: #16a34a; }
+
 @media (max-width: 760px) {
   .settings-col { display: none; }
+  .chats-col { display: none; }
   .model-wrap span { display: none; }
 }

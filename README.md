@@ -18,7 +18,10 @@ to call the proxy.
 - **Prompt caching** — toggle in the sidebar (on by default). The system prompt is
   marked cacheable so repeated turns reuse it instead of re-billing it
 - **Streaming** responses with live token + cost display (per turn and per session)
-- **Multi-turn memory** — the whole conversation is sent each turn; history survives page reloads
+- **Saved chats** — every conversation is kept in a sidebar; reopen and continue any of them, or delete it
+- **Memory** — facts about you (role, languages, style rules) sent with every chat. Add them in the
+  sidebar, or start a message with "Remember …" to save it. Toggle off any time
+- **Multi-turn context** — the whole conversation is sent each turn
 - **System instructions, temperature, top-p, max tokens** — all adjustable in the sidebar
 - **Auto-update** — on each start the app checks GitHub and installs the latest
   version automatically. No re-downloading, no git, no login. Your key and chats
@@ -98,7 +101,9 @@ multi-turn memory, prompt caching, and per-reply cost display.
 - **Prompt caching**: works when the system prompt stays identical between turns.
   Change the system prompt and the cache resets. Cached token counts show in the
   usage line under the composer.
-- Your chat history is stored in your browser's localStorage only, never on a server.
+- Chats and memory are stored in your browser's localStorage only, never on a server.
+  Clearing browser data erases them. Browser storage is ~5 MB; when full, attachments in
+  older chats are replaced by a short note (text is kept).
 
 ## Project layout
 

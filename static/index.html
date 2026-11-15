@@ -25,6 +25,13 @@
   </header>
 
   <main class="layout">
+    <aside class="chats-col">
+      <button id="newChatSide" class="send-btn new-chat-side">+ New chat</button>
+      <h2>Chats</h2>
+      <div id="chatList" class="chat-list"></div>
+      <small class="side-note">Saved in this browser only.</small>
+    </aside>
+
     <section class="chat-col">
       <div id="messages" class="messages">
         <div class="empty-state">
@@ -78,6 +85,18 @@
         <input id="streamToggle" type="checkbox" checked />
         <span>Stream responses</span>
       </label>
+
+      <h2 class="memory-head">Memory</h2>
+      <label class="toggle-field">
+        <input id="memoryToggle" type="checkbox" checked />
+        <span>Use memory in every chat</span>
+      </label>
+      <div id="memoryList" class="memory-list"></div>
+      <div class="memory-add">
+        <input id="memoryInput" type="text" placeholder="Add a fact, e.g. I translate English → Nepali" />
+        <button id="memoryAddBtn" class="ghost-btn">Add</button>
+      </div>
+      <small class="side-note">Tip: start a message with "Remember …" to save it. Stored in this browser only.</small>
     </aside>
   </main>
 

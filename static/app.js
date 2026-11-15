@@ -4,9 +4,16 @@ const LS = {
   base: "vchat_base_url",
   model: "vchat_model",
   system: "vchat_system",
-  history: "vchat_history",
+  history: "vchat_history",   // legacy single-chat store (migrated into chats)
+  chats: "vchat_chats",
+  current: "vchat_current_chat",
+  memory: "vchat_memory",
+  memoryOn: "vchat_memory_on",
 };
-let messages = [];          // OpenAI-format history (memory)
+let messages = [];          // OpenAI-format history of the open chat
+let chats = [];             // [{id, title, updated, messages}] — all saved chats, newest first
+let currentId = null;       // id of the open chat (null = new, unsaved chat)
+let memory = [];            // [{id, text}] — facts about the user, sent with every chat
 let pendingFiles = [];      // [{kind, name, size, dataUrl?, format?, text?}]
 let sending = false;
 let session = { prompt: 0, completion: 0, cost: 0, costKnown: false };  // running totals
@@ -126,8 +133,166 @@ function commitTurn() {
   renderUsage();
 }
 
+// ---------- Chats (stored in this browser) ----------
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+function chatTitle(msgs) {
+  const first = msgs.find((m) => m.role === "user");
+  if (!first) return "New chat";
+  let text = typeof first.content === "string" ? first.content
+    : (first.content.find((p) => p.type === "text")?.text || "Attachment");
+  text = text.split("[Attached file:")[0].trim() || "Attachment";
+  return text.length > 40 ? text.slice(0, 40) + "…" : text;
+}
+
+// Replace big base64 attachments with a short note — used only when browser storage is full.
+function stripMedia(msgs) {
+  return msgs.map((m) => {
+    if (typeof m.content === "string") return m;
+    return { ...m, content: m.content.map((p) => p.type === "text" ? p
+      : { type: "text", text: `[${p.type === "image_url" ? "image" : p.type === "input_audio" ? "audio" : p.file?.filename || "file"} removed to save browser space]` }) };
+  });
+}
+
+function persistChats() {
+  try {
+    localStorage.setItem(LS.chats, JSON.stringify(chats));
+  } catch (e) {
+    // Storage full (~5 MB): drop attachment data from older chats, keep all text.
+    try {
+      chats = chats.map((c) => c.id === currentId ? c : { ...c, messages: stripMedia(c.messages) });
+      localStorage.setItem(LS.chats, JSON.stringify(chats));
+    } catch (e2) {
+      usageEl.textContent = "Browser storage full — delete some old chats so new messages are saved.";
+    }
+  }
+  try { localStorage.setItem(LS.current, currentId || ""); } catch (e) {}
+}
+
 function saveHistory() {
-  try { localStorage.setItem(LS.history, JSON.stringify(messages)); } catch (e) {}
+  if (!messages.length) {                             // nothing to keep (e.g. first message failed)
+    if (currentId) { chats = chats.filter((c) => c.id !== currentId); currentId = null; persistChats(); renderChatList(); }
+    return;
+  }
+  if (!currentId) {
+    currentId = newId();
+    chats.unshift({ id: currentId, title: "New chat", updated: Date.now(), messages: [] });
+  }
+  const chat = chats.find((c) => c.id === currentId);
+  chat.messages = messages;
+  chat.title = chatTitle(messages);
+  chat.updated = Date.now();
+  chats.sort((a, b) => b.updated - a.updated);
+  persistChats();
+  renderChatList();
+}
+
+function renderChatList() {
+  const list = $("chatList");
+  list.innerHTML = "";
+  if (!chats.length) { list.innerHTML = `<div class="memory-empty">No saved chats yet.</div>`; return; }
+  chats.forEach((c) => {
+    const item = document.createElement("div");
+    item.className = "chat-item" + (c.id === currentId ? " active" : "");
+    item.title = c.title;
+    item.innerHTML = `<span class="chat-title">${escapeHtml(c.title)}</span><button class="del" title="Delete chat">×</button>`;
+    item.addEventListener("click", () => openChat(c.id));
+    item.querySelector(".del").addEventListener("click", (e) => { e.stopPropagation(); deleteChat(c.id); });
+    list.appendChild(item);
+  });
+}
+
+const EMPTY_STATE = `<div class="empty-state"><h1>Vertex Chat</h1><p>New conversation. Attach images, audio, video or files. Saved chats are on the left; memory is on the right.</p></div>`;
+
+function resetView() {
+  session = { prompt: 0, completion: 0, cost: 0, costKnown: false };
+  messagesEl.innerHTML = EMPTY_STATE;
+  usageEl.textContent = "";
+}
+
+function startNewChat() {
+  if (sending) return;
+  messages = []; currentId = null;
+  persistChats();
+  resetView();
+  renderChatList();
+  inputEl.focus();
+}
+
+function openChat(id) {
+  if (sending || id === currentId) return;
+  const chat = chats.find((c) => c.id === id);
+  if (!chat) return;
+  currentId = id;
+  persistChats();
+  resetView();
+  renderMessages(chat.messages);
+  renderChatList();
+}
+
+function deleteChat(id) {
+  const chat = chats.find((c) => c.id === id);
+  if (!chat || !confirm(`Delete "${chat.title}"? This cannot be undone.`)) return;
+  chats = chats.filter((c) => c.id !== id);
+  if (id === currentId) { messages = []; currentId = null; resetView(); }
+  persistChats();
+  renderChatList();
+}
+
+// ---------- Memory (facts about the user, stored in this browser) ----------
+function saveMemory() {
+  try { localStorage.setItem(LS.memory, JSON.stringify(memory)); } catch (e) {}
+}
+
+function addMemory(text) {
+  text = text.trim();
+  if (!text || memory.some((m) => m.text.toLowerCase() === text.toLowerCase())) return false;
+  memory.push({ id: newId(), text });
+  saveMemory();
+  renderMemory();
+  return true;
+}
+
+function renderMemory() {
+  const list = $("memoryList");
+  list.innerHTML = "";
+  if (!memory.length) { list.innerHTML = `<div class="memory-empty">Nothing saved yet.</div>`; return; }
+  memory.forEach((m) => {
+    const item = document.createElement("div");
+    item.className = "memory-item";
+    item.innerHTML = `<span>${escapeHtml(m.text)}</span><button class="del" title="Forget this">×</button>`;
+    item.querySelector(".del").addEventListener("click", () => {
+      memory = memory.filter((x) => x.id !== m.id); saveMemory(); renderMemory();
+    });
+    list.appendChild(item);
+  });
+}
+
+// System prompt sent to the model = your instructions + saved memory.
+// Kept stable between turns so prompt caching still works.
+function buildSystem() {
+  let sys = $("systemPrompt").value.trim();
+  if ($("memoryToggle").checked && memory.length) {
+    sys += (sys ? "\n\n" : "") +
+      "What you know about the user (saved memory — use it when relevant, don't repeat it back):\n" +
+      memory.map((m) => "- " + m.text).join("\n");
+  }
+  return sys;
+}
+
+// "Remember that I prefer formal Hindi" → saves "I prefer formal Hindi".
+function captureRemember(text) {
+  const m = text.match(/^\s*(?:please\s+)?remember(?:\s+that)?[\s:,-]+([\s\S]+)/i);
+  if (!m) return null;
+  const fact = m[1].trim().replace(/[.!]+$/, "");
+  return fact && addMemory(fact) ? fact : null;
+}
+
+function showMemoryNote(fact) {
+  const note = document.createElement("div");
+  note.className = "memory-note";
+  note.textContent = `✓ Saved to memory: ${fact}`;
+  messagesEl.appendChild(note);
 }
 
 // ---------- Models ----------
@@ -311,6 +476,8 @@ async function send() {
   $("sendBtn").disabled = true;
 
   addBubble("user", userBubbleHtml(text), text);
+  const remembered = captureRemember(text);
+  if (remembered) showMemoryNote(remembered);
   messages.push({ role: "user", content: buildUserContent(text) });
   inputEl.value = "";
   inputEl.style.height = "auto";
@@ -322,7 +489,7 @@ async function send() {
   const payload = {
     model,
     messages,
-    system: $("systemPrompt").value,
+    system: buildSystem(),
     temperature: parseFloat($("temperature").value),
     top_p: parseFloat($("topp").value),
     cache: $("cacheToggle").checked,
@@ -395,11 +562,10 @@ async function send() {
 }
 
 // ---------- History restore ----------
-function restoreHistory() {
+function renderMessages(saved) {
   try {
-    const saved = JSON.parse(localStorage.getItem(LS.history) || "[]");
-    if (!Array.isArray(saved) || !saved.length) return;
     messages = saved;
+    if (!saved.length) return;
     saved.forEach((m) => {
       if (m.role === "user") {
         let text = "", extra = "";
@@ -416,6 +582,33 @@ function restoreHistory() {
       }
     });
   } catch (e) {}
+}
+
+function loadStore() {
+  try { chats = JSON.parse(localStorage.getItem(LS.chats) || "[]"); } catch (e) { chats = []; }
+  if (!Array.isArray(chats)) chats = [];
+  try { memory = JSON.parse(localStorage.getItem(LS.memory) || "[]"); } catch (e) { memory = []; }
+  if (!Array.isArray(memory)) memory = [];
+  // One-time move of the old single conversation into the chat list.
+  try {
+    const legacy = JSON.parse(localStorage.getItem(LS.history) || "[]");
+    if (Array.isArray(legacy) && legacy.length) {
+      const id = newId();
+      chats.unshift({ id, title: chatTitle(legacy), updated: Date.now(), messages: legacy });
+      localStorage.setItem(LS.current, id);
+      persistChats();
+    }
+    localStorage.removeItem(LS.history);
+  } catch (e) {}
+  chats.sort((a, b) => b.updated - a.updated);
+  let cur = null;
+  try { cur = localStorage.getItem(LS.current); } catch (e) {}
+  const chat = chats.find((c) => c.id === cur);
+  currentId = chat ? chat.id : null;
+  if (chat) renderMessages(chat.messages);
+  try { $("memoryToggle").checked = localStorage.getItem(LS.memoryOn) !== "0"; } catch (e) {}
+  renderChatList();
+  renderMemory();
 }
 
 // ---------- Wiring ----------
@@ -449,12 +642,17 @@ $("temperature").addEventListener("input", (e) => ($("tempVal").textContent = e.
 $("topp").addEventListener("input", (e) => ($("toppVal").textContent = e.target.value));
 $("systemPrompt").addEventListener("input", (e) => localStorage.setItem(LS.system, e.target.value));
 
-$("newChat").addEventListener("click", () => {
-  if (!confirm("Clear this conversation?")) return;
-  messages = []; saveHistory();
-  session = { prompt: 0, completion: 0, cost: 0, costKnown: false };
-  messagesEl.innerHTML = `<div class="empty-state"><h1>Vertex Chat</h1><p>New conversation. Attach images, audio, video or files. Multi-turn memory, prompt caching on by default.</p></div>`;
-  usageEl.textContent = "";
+$("newChat").addEventListener("click", startNewChat);
+$("newChatSide").addEventListener("click", startNewChat);
+
+$("memoryToggle").addEventListener("change", (e) => {
+  try { localStorage.setItem(LS.memoryOn, e.target.checked ? "1" : "0"); } catch (err) {}
+});
+$("memoryAddBtn").addEventListener("click", () => {
+  if (addMemory($("memoryInput").value)) $("memoryInput").value = "";
+});
+$("memoryInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); $("memoryAddBtn").click(); }
 });
 
 // Settings modal
@@ -519,6 +717,6 @@ $("sendFeedback").addEventListener("click", async () => {
 (function init() {
   const sys = localStorage.getItem(LS.system);
   if (sys) $("systemPrompt").value = sys;
-  restoreHistory();
+  loadStore();
   loadModels();
 })();
