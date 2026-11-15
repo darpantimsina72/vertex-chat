@@ -70,6 +70,23 @@ Then pick a model in the top bar and chat.
 Both URL and key can also be set per-browser in the app's ⚙ Settings, which
 overrides `.env`.
 
+## How this differs from calling the Gemini API directly
+
+Same Gemini models underneath — but you reach them through a LiteLLM gateway
+that fronts Vertex AI, not Google's endpoint directly.
+
+| | Vertex Chat (via LiteLLM gateway) | Gemini API directly |
+|---|---|---|
+| Endpoint | LiteLLM proxy (`LITELLM_BASE_URL`), which forwards to Vertex AI | Google's endpoint |
+| Key | `sk-…` virtual key issued by the gateway admin | Google API key (AI Studio) |
+| Billing | The gateway owner's Google Cloud project | Your own Google account |
+| API format | OpenAI Chat Completions — any OpenAI SDK/tool works | Google's own format and SDK |
+| Model names | Aliases set by the gateway admin, fetched live from `/v1/models` | Google's official model ids |
+| Control | Admin can set budgets, track usage per key, revoke keys | Only you |
+
+On top of the gateway, this app adds attachments (images, audio, video, PDFs),
+multi-turn memory, prompt caching, and per-reply cost display.
+
 ## Notes & limits
 
 - **Attachment size**: audio/video/PDF capped at **25 MB** — bigger files inflate 33%
